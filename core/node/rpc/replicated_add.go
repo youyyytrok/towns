@@ -6,8 +6,6 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/ethereum/go-ethereum/common"
-	"google.golang.org/protobuf/proto"
-
 	. "github.com/towns-protocol/towns/core/node/base"
 	. "github.com/towns-protocol/towns/core/node/events"
 	"github.com/towns-protocol/towns/core/node/logging"
@@ -15,6 +13,7 @@ import (
 	. "github.com/towns-protocol/towns/core/node/protocol"
 	. "github.com/towns-protocol/towns/core/node/shared"
 	"github.com/towns-protocol/towns/core/node/storage"
+	"google.golang.org/protobuf/proto"
 )
 
 func contextDeadlineLeft(ctx context.Context) time.Duration {
@@ -70,8 +69,9 @@ func (s *Service) replicatedAddEventImpl(ctx context.Context, stream *Stream, ev
 	}
 
 	streamId := stream.StreamId()
-	sender := NewQuorumPool("method", "replicatedAddEventImpl", "streamId", streamId)
-	sender.Timeout = 2500 * time.Millisecond // TODO: REPLICATION: TEST: setting so test can have more aggressive timeout
+
+	// TODO: REPLICATION: TEST: setting so test can have more aggressive timeout
+	sender := NewQuorumPoolWithTimeoutForRemotes(2500*time.Millisecond, "method", "replicatedStream.AddEvent", "streamId", streamId)
 
 	sender.GoLocal(ctx, func(ctx context.Context) error {
 		return stream.AddEvent(ctx, event)
