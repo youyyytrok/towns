@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"sync"
 	"testing"
 	"time"
 
@@ -44,7 +45,10 @@ func quorumPoolSuccess(t *testing.T) {
 		req     = require.New(t)
 		remotes = []common.Address{common.Address{1}, common.Address{2}, common.Address{3}, common.Address{4}}
 		qPool   = events.NewQuorumPool()
+		wg      sync.WaitGroup
 	)
+
+	wg.Add(1 + len(remotes))
 
 	qPool.GoLocal(ctx, func(ctx context.Context) error {
 
@@ -62,6 +66,8 @@ func quorumPoolSuccess(t *testing.T) {
 	})
 
 	req.NoError(qPool.Wait(), "quorum must be reached")
+
+	wg.Done() // make goleak happy
 }
 
 func quorumPoolFail(t *testing.T) {
@@ -70,7 +76,10 @@ func quorumPoolFail(t *testing.T) {
 		req     = require.New(t)
 		remotes = []common.Address{common.Address{1}, common.Address{2}, common.Address{3}, common.Address{4}}
 		qPool   = events.NewQuorumPool()
+		wg      sync.WaitGroup
 	)
+
+	wg.Add(1 + len(remotes))
 
 	qPool.GoLocal(ctx, func(ctx context.Context) error {
 		time.Sleep(time.Duration(rand.Int()%500) * time.Millisecond)
@@ -89,6 +98,8 @@ func quorumPoolFail(t *testing.T) {
 	})
 
 	req.Error(qPool.Wait(), "quorum must not be reached")
+
+	wg.Done() // make goleak happy
 }
 
 // quorumPoolWithSomeSlowRemotes ensures that quorum is reached even when some remotes timeout before responding
@@ -98,7 +109,10 @@ func quorumPoolWithSomeSlowRemotes(t *testing.T) {
 		req     = require.New(t)
 		remotes = []common.Address{common.Address{1}, common.Address{2}, common.Address{3}, common.Address{4}}
 		qPool   = events.NewQuorumPoolWithTimeoutForRemotes(time.Second)
+		wg      sync.WaitGroup
 	)
+
+	wg.Add(1 + len(remotes))
 
 	qPool.GoLocal(ctx, func(ctx context.Context) error {
 		select {
@@ -125,6 +139,8 @@ func quorumPoolWithSomeSlowRemotes(t *testing.T) {
 	})
 
 	req.NoError(qPool.Wait())
+
+	wg.Done() // make goleak happy
 }
 
 // quorumPoolWithTooManySlowRemotes ensures that quorum isn't reached when too many remotes timeout before responding
@@ -135,7 +151,10 @@ func quorumPoolWithTooManySlowRemotes(t *testing.T) {
 		req     = require.New(t)
 		remotes = []common.Address{common.Address{1}, common.Address{2}, common.Address{3}, common.Address{4}}
 		qPool   = events.NewQuorumPoolWithTimeoutForRemotes(time.Second)
+		wg      sync.WaitGroup
 	)
+
+	wg.Add(1 + len(remotes))
 
 	qPool.GoLocal(ctx, func(ctx context.Context) error {
 		select {
@@ -168,4 +187,6 @@ func quorumPoolWithTooManySlowRemotes(t *testing.T) {
 
 	req.ErrorAs(qPool.Wait(), &err)
 	req.ErrorIs(err, target)
+
+	wg.Done() // make goleak happy
 }
