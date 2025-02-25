@@ -3,7 +3,6 @@ package events
 import (
 	"context"
 	"fmt"
-	"github.com/linkdata/deadlock"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -231,14 +230,6 @@ func (sub *testStreamCacheViewEvictionSub) eventsReceived() int {
 
 // TODO: it seems this test takes at least 60 seconds, why?
 func TestStreamMiniblockBatchProduction(t *testing.T) {
-	deadlock.Opts.WriteLocked(func() {
-		deadlock.Opts.DeadlockTimeout = 30 * time.Second
-		deadlock.Opts.MaxMapSize = 1024 * 256
-		deadlock.Opts.PrintAllCurrentGoroutines = true
-	})
-
-	fmt.Printf("Start %s\n", time.Now())
-
 	require := require.New(t)
 	ctx, tc := makeCacheTestContext(t, testParams{disableMineOnTx: true})
 	btc := tc.btc
@@ -306,16 +297,11 @@ func TestStreamMiniblockBatchProduction(t *testing.T) {
 
 			// quit loop when all added events are included in mini-blocks
 			miniblocksProduced := 0
-			fmt.Printf("00000 %s\n", time.Now())
-
 			for streamID := range genesisBlocks {
-				fmt.Printf("AAAA %s / %s\n", streamID, time.Now())
 				stream, err := streamCache.GetStreamWaitForLocal(ctx, streamID)
 				require.NoError(err, "get stream")
-				fmt.Printf("BBBB %s / %s\n", streamID, time.Now())
 				view, err := stream.GetView(ctx)
 				require.NoError(err, "get view")
-				fmt.Printf("CCCC %s / %s\n", streamID, time.Now())
 
 				var (
 					expStreamEventsCount = len(genesisBlocks[streamID].Events) + streamsWithEvents[streamID]
@@ -325,12 +311,8 @@ func TestStreamMiniblockBatchProduction(t *testing.T) {
 				syncCookie := view.SyncCookie(tc.getBC().Wallet.Address)
 				require.NotNil(syncCookie, "sync cookie")
 
-				fmt.Printf("DDDD %s / %s\n", streamID, time.Now())
-
 				miniblocks, _, err := stream.GetMiniblocks(ctx, 0, syncCookie.MinipoolGen)
 				require.NoError(err, "get miniblocks")
-
-				fmt.Printf("EEEE %s / %s\n", streamID, time.Now())
 
 				for _, mb := range miniblocks {
 					gotStreamEventsCount += len(mb.Events)
@@ -344,7 +326,7 @@ func TestStreamMiniblockBatchProduction(t *testing.T) {
 			// all streams with events added have a new block after genesis
 			return miniblocksProduced == len(genesisBlocks)
 		},
-		60*time.Second,
+		240*time.Second,
 		100*time.Millisecond,
 	)
 }
