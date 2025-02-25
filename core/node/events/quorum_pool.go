@@ -82,9 +82,9 @@ func (q *quorumPool) onTaskFinished(ctx context.Context, remote *common.Address,
 	} else {
 		q.errors = append(q.errors, err)
 	}
-	q.resultAvailable.L.Unlock()
 
 	q.resultAvailable.Signal()
+	q.resultAvailable.L.Unlock()
 
 	if err != nil {
 		tags := []any{"error", err}
