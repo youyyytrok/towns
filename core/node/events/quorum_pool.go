@@ -47,7 +47,9 @@ func (q *quorumPool) GoLocal(ctx context.Context, f func(ctx context.Context) er
 	q.hasLocalTask = true
 	q.totalTasks++
 
-	go q.onTaskFinished(ctx, nil, f(ctx))
+	go func() {
+		q.onTaskFinished(ctx, nil, f(ctx))
+	}()
 }
 
 // GoRemotes executes f on the given nodes concurrently and captures the results for which the caller must wait.
