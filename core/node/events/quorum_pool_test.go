@@ -51,12 +51,15 @@ func quorumPoolSuccess(t *testing.T) {
 	wg.Add(1 + len(remotes))
 
 	qPool.GoLocal(ctx, func(ctx context.Context) error {
-
+		defer wg.Done()
+		
 		time.Sleep(time.Duration(rand.Int()%500) * time.Millisecond)
 		return nil
 	})
 
 	qPool.GoRemotes(ctx, remotes, func(ctx context.Context, node common.Address) error {
+		defer wg.Done()
+
 		time.Sleep(time.Duration(rand.Int()%500) * time.Millisecond)
 		if node[0]%2 == 0 {
 			return fmt.Errorf("node %s returned error", node)
@@ -67,7 +70,7 @@ func quorumPoolSuccess(t *testing.T) {
 
 	req.NoError(qPool.Wait(), "quorum must be reached")
 
-	wg.Done() // make goleak happy
+	wg.Wait() // make goleak happy
 }
 
 func quorumPoolFail(t *testing.T) {
@@ -82,12 +85,16 @@ func quorumPoolFail(t *testing.T) {
 	wg.Add(1 + len(remotes))
 
 	qPool.GoLocal(ctx, func(ctx context.Context) error {
+		defer wg.Done()
+
 		time.Sleep(time.Duration(rand.Int()%500) * time.Millisecond)
 
 		return fmt.Errorf("local node returned error")
 	})
 
 	qPool.GoRemotes(ctx, remotes, func(ctx context.Context, node common.Address) error {
+		defer wg.Done()
+
 		time.Sleep(time.Duration(rand.Int()%500) * time.Millisecond)
 
 		if node[0]%2 == 1 {
@@ -99,7 +106,7 @@ func quorumPoolFail(t *testing.T) {
 
 	req.Error(qPool.Wait(), "quorum must not be reached")
 
-	wg.Done() // make goleak happy
+	wg.Wait() // make goleak happy
 }
 
 // quorumPoolWithSomeSlowRemotes ensures that quorum is reached even when some remotes timeout before responding
@@ -115,6 +122,8 @@ func quorumPoolWithSomeSlowRemotes(t *testing.T) {
 	wg.Add(1 + len(remotes))
 
 	qPool.GoLocal(ctx, func(ctx context.Context) error {
+		defer wg.Done()
+
 		select {
 		case <-time.After(10 * time.Millisecond):
 			return nil
@@ -124,6 +133,8 @@ func quorumPoolWithSomeSlowRemotes(t *testing.T) {
 	})
 
 	qPool.GoRemotes(ctx, remotes, func(ctx context.Context, node common.Address) error {
+		defer wg.Done()
+
 		duration := time.Duration(100 * time.Millisecond)
 		if node[0] <= byte(len(remotes)/2) { // some nodes are really slow
 			duration = time.Duration(5 * time.Second)
@@ -140,7 +151,7 @@ func quorumPoolWithSomeSlowRemotes(t *testing.T) {
 
 	req.NoError(qPool.Wait())
 
-	wg.Done() // make goleak happy
+	wg.Wait() // make goleak happy
 }
 
 // quorumPoolWithTooManySlowRemotes ensures that quorum isn't reached when too many remotes timeout before responding
@@ -157,6 +168,8 @@ func quorumPoolWithTooManySlowRemotes(t *testing.T) {
 	wg.Add(1 + len(remotes))
 
 	qPool.GoLocal(ctx, func(ctx context.Context) error {
+		defer wg.Done()
+
 		select {
 		case <-time.After(10 * time.Millisecond):
 			return nil
@@ -166,6 +179,8 @@ func quorumPoolWithTooManySlowRemotes(t *testing.T) {
 	})
 
 	qPool.GoRemotes(ctx, remotes, func(ctx context.Context, node common.Address) error {
+		defer wg.Done()
+
 		duration := time.Duration(10 * time.Millisecond)
 		if node[0] <= byte(1+len(remotes)/2) { // some nodes are too slow
 			duration = time.Duration(5 * time.Second)
@@ -188,5 +203,5 @@ func quorumPoolWithTooManySlowRemotes(t *testing.T) {
 	req.ErrorAs(qPool.Wait(), &err)
 	req.ErrorIs(err, target)
 
-	wg.Done() // make goleak happy
+	wg.Wait() // make goleak happy
 }
